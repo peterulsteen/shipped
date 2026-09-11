@@ -266,11 +266,11 @@ func percentile(v []float64, q float64) float64 {
 	}
 	s := append([]float64(nil), v...)
 	sort.Float64s(s)
-	k := int(q * float64(len(s)))
-	if k >= len(s) {
-		k = len(s) - 1
-	}
-	return s[k]
+	// Linear interpolation between ranks: the median of an even count is the
+	// mean of the middle two, and a p90 of a small sample is not just its max.
+	pos := q * float64(len(s)-1)
+	lo, hi := int(math.Floor(pos)), int(math.Ceil(pos))
+	return s[lo] + (s[hi]-s[lo])*(pos-float64(lo))
 }
 
 // tailMean returns the mean of the last n values and of the n before those, so

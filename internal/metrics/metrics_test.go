@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -101,5 +102,28 @@ func TestFirstReviewerConcentration(t *testing.T) {
 	r := Build(at(11, 12), "me", prs, nil, 10, 1, 8, 18)
 	if r.TopFirstReviewer != "bot" || r.TopFirstReviewerShare != 75 {
 		t.Errorf("top first reviewer = %q at %v%%, want bot at 75%%", r.TopFirstReviewer, r.TopFirstReviewerShare)
+	}
+}
+
+// Percentiles interpolate between ranks, so the median of an even count is the
+// mean of the middle two and a p90 of ten values is not simply the maximum.
+func TestPercentileInterpolates(t *testing.T) {
+	ten := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	cases := []struct {
+		name string
+		v    []float64
+		q    float64
+		want float64
+	}{
+		{"median of an even count", []float64{4, 1, 3, 2}, 0.5, 2.5},
+		{"median of an odd count", []float64{5, 1, 3}, 0.5, 3},
+		{"p90 of ten is not the max", ten, 0.9, 9.1},
+		{"single value", []float64{7}, 0.9, 7},
+		{"empty", nil, 0.5, 0},
+	}
+	for _, tc := range cases {
+		if got := percentile(tc.v, tc.q); math.Abs(got-tc.want) > 1e-9 {
+			t.Errorf("%s: percentile(%v, %v) = %v, want %v", tc.name, tc.v, tc.q, got, tc.want)
+		}
 	}
 }
