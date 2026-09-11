@@ -25,6 +25,10 @@ type PullRequest struct {
 	SrcAdd    int        `json:"src_additions"`
 	SrcDel    int        `json:"src_deletions"`
 	FilesCap  bool       `json:"files_capped"`
+	// FilesSeenLines is the diff GitHub listed file by file; whatever the PR
+	// changed beyond that sits in files past the 100-file cap.
+	FilesSeenLines int  `json:"files_seen_lines"`
+	ReviewsCap     bool `json:"reviews_capped"`
 	// Reviews are the reviews submitted on this PR, by anyone, oldest first.
 	// Both halves of the report read from these: on a PR the user authored they
 	// are the reviews RECEIVED; on a PR they reviewed, theirs is the one GIVEN.
@@ -84,7 +88,8 @@ type prNode struct {
 		} `json:"nodes"`
 	} `json:"files"`
 	Reviews struct {
-		Nodes []struct {
+		TotalCount int `json:"totalCount"`
+		Nodes      []struct {
 			SubmittedAt *time.Time `json:"submittedAt"`
 			Author      *struct {
 				Login string `json:"login"`
@@ -114,7 +119,7 @@ query($q: String!, $after: String) {
       author { login }
       repository { nameWithOwner }
       files(first: 100) { totalCount nodes { path additions deletions } }
-      reviews(first: 20) { nodes { submittedAt author { login } } }
+      reviews(first: 100) { totalCount nodes { submittedAt author { login } } }
     } }
   }
 }`
@@ -208,20 +213,22 @@ func convert(nodes []prNode, login string, cls Classifier) []PullRequest {
 			continue // a non-PR node in the search result
 		}
 		pr := PullRequest{
-			Number:    n.Number,
-			Repo:      n.Repository.NameWithOwner,
-			CreatedAt: n.CreatedAt,
-			MergedAt:  n.MergedAt,
-			ClosedAt:  n.ClosedAt,
-			Additions: n.Additions,
-			Deletions: n.Deletions,
-			Files:     n.Files,
-			FilesCap:  n.FileList.TotalCount > len(n.FileList.Nodes),
+			Number:     n.Number,
+			Repo:       n.Repository.NameWithOwner,
+			CreatedAt:  n.CreatedAt,
+			MergedAt:   n.MergedAt,
+			ClosedAt:   n.ClosedAt,
+			Additions:  n.Additions,
+			Deletions:  n.Deletions,
+			Files:      n.Files,
+			FilesCap:   n.FileList.TotalCount > len(n.FileList.Nodes),
+			ReviewsCap: n.Reviews.TotalCount > len(n.Reviews.Nodes),
 		}
 		if n.Author != nil {
 			pr.Author = n.Author.Login
 		}
 		for _, f := range n.FileList.Nodes {
+			pr.FilesSeenLines += f.Additions + f.Deletions
 			if cls.IsGenerated(f.Path, f.Additions, f.Deletions) {
 				continue
 			}

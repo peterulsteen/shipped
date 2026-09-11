@@ -39,7 +39,7 @@ shipped open       # render and open the dashboard
 
 Every chart has a hover readout and a data table.
 
-### Two things it won't let you misread
+### What it won't let you misread
 
 **Generated lines are not authored lines.** Lockfiles, build output, snapshots,
 fixtures, and any single file over 2,000 changed lines are counted separately —
@@ -49,6 +49,10 @@ one large test fixture can otherwise outweigh a month of real work.
 reviewer as a user, so a review bot looks like a colleague. When one reviewer is
 first on half or more of your PRs, the dashboard says so beside the wait time
 rather than implying people engaged within minutes.
+
+**A truncated list is not a complete one.** GitHub returns at most 100 files and
+100 reviews per pull request. When a PR in view exceeds either, the page says so,
+with the most its totals could be low by.
 
 ## Configuration
 

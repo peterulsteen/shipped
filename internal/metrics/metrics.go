@@ -55,6 +55,13 @@ type Report struct {
 	// rather than implying that a human engaged.
 	TopFirstReviewer      string
 	TopFirstReviewerShare float64
+
+	// Truncation GitHub imposed on PRs that feed this window, so the page can
+	// say a total may be low instead of implying it is whole.
+	FilesCappedPRs   int
+	FilesCappedLines float64 // diff in files GitHub did not list: the most authored lines can be low by
+	WindowRawLines   float64
+	ReviewsCappedPRs int
 }
 
 // concentration returns the most frequent key and its share of the total.
@@ -210,6 +217,8 @@ func Build(now time.Time, login string, authored, reviewed []gh.PullRequest, win
 		r.Reciprocity = r.GivenAvg / r.MergedAvg
 	}
 	r.OldestOpenDays = oldestOpen(authored, now)
+	r.WindowRawLines = sum(rawRaw)
+	truncation(r, authored, reviewed)
 	return r
 }
 
@@ -302,4 +311,36 @@ func round(v float64, places int) float64 {
 	}
 	p := math.Pow(10, float64(places))
 	return math.Round(v*p) / p
+}
+
+// truncation counts PRs in the window whose files or reviews GitHub cut off. A
+// capped PR outside the window is not reported: the page must not warn about
+// numbers it does not show.
+func truncation(r *Report, authored, reviewed []gh.PullRequest) {
+	start, end := r.Days[0], endOfDay(r.Days[len(r.Days)-1])
+	in := func(t time.Time) bool { return !t.Before(start) && !t.After(end) }
+	for _, p := range authored {
+		if p.FilesCap && p.MergedAt != nil && in(*p.MergedAt) {
+			r.FilesCappedPRs++
+			r.FilesCappedLines += math.Max(0, float64(p.Additions+p.Deletions-p.FilesSeenLines))
+		}
+	}
+	for _, p := range append(append([]gh.PullRequest(nil), authored...), reviewed...) {
+		if p.ReviewsCap && touches(p, in) {
+			r.ReviewsCappedPRs++
+		}
+	}
+}
+
+// touches reports whether a PR has any activity inside the window.
+func touches(p gh.PullRequest, in func(time.Time) bool) bool {
+	if in(p.CreatedAt) || (p.MergedAt != nil && in(*p.MergedAt)) {
+		return true
+	}
+	for _, rv := range p.Reviews {
+		if in(rv.At) {
+			return true
+		}
+	}
+	return false
 }

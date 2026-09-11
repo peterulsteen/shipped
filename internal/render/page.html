@@ -76,7 +76,7 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11.5px}
   <h1>shipped</h1>
   <p class="meta">{{.Login}} · {{.Range}} · {{.Authored}} authored, {{.Reviewed}} reviewed · built {{.Built}}</p>
 </header>
-{{if .ReviewCaveat}}<p class="note">{{.ReviewCaveat}}</p>{{end}}
+{{range .Notes}}<p class="note">{{.}}</p>{{end}}
 <div class="kpis">
 {{range .Tiles}}
   <div class="tile">

@@ -127,3 +127,22 @@ func TestPercentileInterpolates(t *testing.T) {
 		}
 	}
 }
+
+// Truncation is reported only for PRs that feed the window, and the missing
+// diff is bounded by what GitHub did list, not the PR's whole size.
+func TestTruncationIsScopedToTheWindow(t *testing.T) {
+	inside := gh.PullRequest{Repo: "o/r", Number: 1, CreatedAt: at(8, 9), MergedAt: ptr(at(9, 9)),
+		Additions: 900, Deletions: 100, FilesSeenLines: 400, FilesCap: true, ReviewsCap: true,
+		Reviews: []gh.Review{{At: at(8, 12), By: "alice"}}}
+	july := time.Date(2026, 7, 1, 9, 0, 0, 0, west)
+	before := gh.PullRequest{Repo: "o/r", Number: 2, CreatedAt: july, MergedAt: ptr(july.AddDate(0, 0, 1)),
+		Additions: 5000, FilesCap: true, ReviewsCap: true}
+	r := Build(at(11, 12), "me", []gh.PullRequest{inside, before}, nil, 10, 1, 8, 18)
+	if r.FilesCappedPRs != 1 || r.FilesCappedLines != 600 {
+		t.Errorf("files capped = %d PRs, %v lines; want 1 PR, 600 lines (1000 changed - 400 listed; July is out of window)",
+			r.FilesCappedPRs, r.FilesCappedLines)
+	}
+	if r.ReviewsCappedPRs != 1 {
+		t.Errorf("reviews capped = %d, want 1 (July is out of window)", r.ReviewsCappedPRs)
+	}
+}

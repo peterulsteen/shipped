@@ -23,14 +23,14 @@ type Tile struct {
 }
 
 type pageData struct {
-	Login        string
-	Range        string
-	Built        string
-	Authored     int
-	Reviewed     int
-	Tiles        []Tile
-	Charts       []Chart
-	ReviewCaveat string
+	Login    string
+	Range    string
+	Built    string
+	Authored int
+	Reviewed int
+	Tiles    []Tile
+	Charts   []Chart
+	Notes    []string
 }
 
 // Page renders the whole dashboard to path.
@@ -57,12 +57,13 @@ func Page(path, login string, r *metrics.Report) error {
 		Charts:   charts(r),
 	}
 	if r.TopFirstReviewer != "" && r.TopFirstReviewerShare >= 50 {
-		data.ReviewCaveat = fmt.Sprintf(
+		data.Notes = append(data.Notes, fmt.Sprintf(
 			"%s is first to review %.0f%% of your pull requests. GitHub reports every reviewer as a user, "+
 				"so a high share paired with a very short wait may be automation rather than a colleague — "+
 				"read the two together.",
-			r.TopFirstReviewer, r.TopFirstReviewerShare)
+			r.TopFirstReviewer, r.TopFirstReviewerShare))
 	}
+	data.Notes = append(data.Notes, truncationNotes(r)...)
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
@@ -124,4 +125,32 @@ func charts(r *metrics.Report) []Chart {
 			{Name: "Median size", Unit: " lines", Values: r.MedianPRSize},
 		}},
 	}
+}
+
+// truncationNotes says when GitHub cut a PR's file or review list short, with
+// the tightest bound the data supports. Nothing truncated means no note.
+func truncationNotes(r *metrics.Report) []string {
+	var notes []string
+	if r.FilesCappedPRs > 0 {
+		share := ""
+		if r.WindowRawLines > 0 {
+			share = fmt.Sprintf(" (%.1f%% of this window's diff)", r.FilesCappedLines/r.WindowRawLines*100)
+		}
+		notes = append(notes, fmt.Sprintf(
+			"%d merged %s changed more than 100 files. GitHub lists only the first 100, so authored lines may be low by up to %s%s.",
+			r.FilesCappedPRs, plural(r.FilesCappedPRs, "pull request", "pull requests"), fmtNum(r.FilesCappedLines), share))
+	}
+	if r.ReviewsCappedPRs > 0 {
+		notes = append(notes, fmt.Sprintf(
+			"%d %s had more than 100 reviews. GitHub returns the first 100, so review counts may be slightly low.",
+			r.ReviewsCappedPRs, plural(r.ReviewsCappedPRs, "pull request", "pull requests")))
+	}
+	return notes
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
