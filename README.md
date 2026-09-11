@@ -58,14 +58,24 @@ rather than implying people engaged within minutes.
 author = ""                 # blank = the authenticated gh user
 orgs   = ["my-org"]         # blank = all of GitHub
 repos  = []                 # owner/name
-generated_paths    = ["pnpm-lock.yaml", "dist/", "vendor/", "fixtures/"]
-generated_suffixes = [".snap", ".min.js", ".pb.go"]
+
+# Files counted as generated rather than authored. The built-in list covers
+# common lockfiles (npm, Cargo, Go, Terraform, Nix, Gradle and more), build
+# output, vendored code, snapshots, and fixtures. Extend it:
+extra_generated_paths = ["third_party/"]
+# ...or replace it outright, and maintain the whole list yourself:
+# generated_paths    = ["dist/", "vendor/"]
+# generated_suffixes = [".snap", ".min.js"]
+
 big_file_lines = 2000       # 0 disables the size rule
 window_days    = 90
 rolling_days   = 7
 workday_start  = 8          # after hours = outside this range, plus weekends
 workday_end    = 18
 ```
+
+`shipped init` writes only `author`, `orgs`, and `repos`. Everything else falls
+back to the built-in defaults, so upgrading shipped can improve them.
 
 `collect` also takes `--org`, `--repo`, `--author`, and `--since` for one-off runs.
 Data lives in `~/.local/share/shipped/` (respects `$XDG_DATA_HOME`).

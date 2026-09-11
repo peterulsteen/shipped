@@ -18,9 +18,13 @@ type Config struct {
 	Orgs  []string `mapstructure:"orgs"`
 	Repos []string `mapstructure:"repos"`
 
-	// Lines in files matching these are counted as generated, not authored.
+	// Lines in files matching these count as generated, not authored. Setting
+	// generated_paths replaces the built-in list; extra_generated_paths extends it.
 	GeneratedPaths    []string `mapstructure:"generated_paths"`
 	GeneratedSuffixes []string `mapstructure:"generated_suffixes"`
+	// ExtraGeneratedPaths are appended to GeneratedPaths, so a user can add to the
+	// built-in list without freezing it -- the defaults keep improving on upgrade.
+	ExtraGeneratedPaths []string `mapstructure:"extra_generated_paths"`
 	// Any single file changing more lines than this is data, not authored code.
 	BigFileLines int `mapstructure:"big_file_lines"`
 
@@ -40,6 +44,8 @@ type Config struct {
 var defaultGeneratedPaths = []string{
 	"pnpm-lock.yaml", "package-lock.json", "yarn.lock", "Cargo.lock",
 	"go.sum", "poetry.lock", "Gemfile.lock", "composer.lock", "uv.lock",
+	".terraform.lock.hcl", "bun.lock", "bun.lockb", "flake.lock", "Podfile.lock",
+	"pubspec.lock", "mix.lock", "Package.resolved", "packages.lock.json", "gradle.lockfile",
 	"generated/", "dist/", "build/", "vendor/", "node_modules/",
 	"__snapshots__/", "__pycache__/", "migrations/",
 	"fixture/", "fixtures/", "__fixtures__/", "testdata/",
@@ -55,6 +61,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("repos", []string{})
 	v.SetDefault("generated_paths", defaultGeneratedPaths)
 	v.SetDefault("generated_suffixes", defaultGeneratedSuffixes)
+	v.SetDefault("extra_generated_paths", []string{})
 	v.SetDefault("big_file_lines", 2000)
 	v.SetDefault("window_days", 90)
 	v.SetDefault("rolling_days", 7)
@@ -105,6 +112,8 @@ func Load() (*Config, error) {
 	if err := v.Unmarshal(&c); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", File(), err)
 	}
+	// A fresh slice, so appending can never write into the package default.
+	c.GeneratedPaths = append(append([]string(nil), c.GeneratedPaths...), c.ExtraGeneratedPaths...)
 	if c.DataDir == "" {
 		c.DataDir = defaultDataDir()
 	}
@@ -122,7 +131,9 @@ func defaultDataDir() string {
 	return filepath.Join(home, ".local", "share", "shipped")
 }
 
-// Save writes the config as TOML, creating the directory if needed.
+// Save writes only the choices setup makes -- who and where to measure. Copying
+// the default lists into the file would freeze them, and the user would never
+// receive improved defaults on upgrade.
 func (c *Config) Save() error {
 	if err := os.MkdirAll(Dir(), 0o755); err != nil {
 		return err
@@ -131,13 +142,6 @@ func (c *Config) Save() error {
 	v.Set("author", c.Author)
 	v.Set("orgs", c.Orgs)
 	v.Set("repos", c.Repos)
-	v.Set("generated_paths", c.GeneratedPaths)
-	v.Set("generated_suffixes", c.GeneratedSuffixes)
-	v.Set("big_file_lines", c.BigFileLines)
-	v.Set("window_days", c.WindowDays)
-	v.Set("rolling_days", c.RollingDays)
-	v.Set("workday_start", c.WorkdayStart)
-	v.Set("workday_end", c.WorkdayEnd)
 	v.SetConfigType("toml")
 	return v.WriteConfigAs(File())
 }
