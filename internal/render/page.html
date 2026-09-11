@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>shipped</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f6f6f4; --surface-1:#fcfcfb; --border:#e4e3df;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#8a8983;
+  --series-1:#2a78d6; --series-2:#eb6834;
+  --good:#0b7a4b; --bad:#b23b3b;
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --bg:#111110; --surface-1:#1a1a19; --border:#2f2f2c;
+  --text-primary:#fff; --text-secondary:#c3c2b7; --text-muted:#8b8a82;
+  --series-1:#3987e5; --series-2:#d95926;
+  --good:#4bb583; --bad:#e66767;
+}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text-primary);
+  font:14px/1.5 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:32px 16px 56px}
+header{margin-bottom:20px}
+h1{font-size:22px;font-weight:650;margin:0 0 4px;letter-spacing:-.01em}
+.meta{color:var(--text-muted);font-size:12.5px;margin:0}
+.note{background:var(--surface-1);border:1px solid var(--border);border-left:3px solid var(--series-2);
+  border-radius:8px;padding:11px 14px;margin:14px 0 18px;font-size:12.5px;color:var(--text-secondary)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tlab{margin:0;font-size:12px;color:var(--text-secondary);font-weight:500}
+.tval{margin:6px 0 2px;font-size:27px;font-weight:640;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px}
+.tnote{margin:0;font-size:11.5px;color:var(--text-muted)}
+.delta{font-size:12px;font-weight:600}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;
+  padding:16px 16px 10px;margin-bottom:14px;position:relative}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+h2{font-size:14.5px;font-weight:620;margin:0}
+.sub{margin:2px 0 0;font-size:12px;color:var(--text-muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)}
+.lg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+svg{width:100%;height:auto;display:block;overflow:visible}
+.grid{stroke:var(--border);stroke-width:1}
+.ytick,.xtick{fill:var(--text-muted);font-size:10.5px;font-family:inherit}
+.ytick{text-anchor:end} .xtick{text-anchor:middle}
+.endlab{font-size:11px;font-weight:620;text-anchor:end;font-family:inherit}
+.cross{stroke:var(--text-muted);stroke-width:1;stroke-dasharray:3 3}
+.hit{cursor:crosshair}
+.tip{position:absolute;pointer-events:none;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.13);z-index:5;min-width:150px}
+.tip b{display:block;font-size:11.5px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
+.tip .r{display:flex;justify-content:space-between;gap:14px;font-variant-numeric:tabular-nums}
+.tip .r i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:6px}
+details{margin:8px -16px 0;border-top:1px solid var(--border)}
+summary{cursor:pointer;font-size:12px;color:var(--text-secondary);padding:9px 16px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary:before{content:"▸ ";color:var(--text-muted)}
+details[open] summary:before{content:"▾ "}
+.tw{max-height:280px;overflow:auto;padding:0 16px 12px}
+table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:4px 8px;border-bottom:1px solid var(--border)}
+th:first-child,td:first-child{text-align:left;color:var(--text-secondary)}
+th{position:sticky;top:0;background:var(--surface-1);color:var(--text-secondary);font-weight:560}
+footer{color:var(--text-muted);font-size:12px;margin-top:20px;line-height:1.7}
+code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11.5px}
+</style></head><body>
+<div class="wrap">
+<header>
+  <h1>shipped</h1>
+  <p class="meta">{{.Login}} · {{.Range}} · {{.Authored}} authored, {{.Reviewed}} reviewed · built {{.Built}}</p>
+</header>
+{{if .ReviewCaveat}}<p class="note">{{.ReviewCaveat}}</p>{{end}}
+<div class="kpis">
+{{range .Tiles}}
+  <div class="tile">
+    <p class="tlab">{{.Label}}</p>
+    <p class="tval">{{.Value}}{{with .Delta}}<span class="delta {{if neg .}}down{{else}}up{{end}}">{{if neg .}}−{{else}}+{{end}}{{pct .}}%</span>{{end}}</p>
+    <p class="tnote">{{.Note}}</p>
+  </div>
+{{end}}
+</div>
+{{range .Charts}}
+<section class="card">
+  <div class="chead">
+    <div><h2>{{.Title}}</h2><p class="sub">{{.Sub}}</p></div>
+    <div class="legend">{{legend .}}</div>
+  </div>
+  <svg id="{{.ID}}" viewBox="0 0 900 250" role="img" aria-label="{{.Title}}">{{svg .}}</svg>
+  <div class="tip" id="{{.ID}}-tip" hidden></div>
+  <details><summary>Data table</summary><div class="tw"><table>{{table .}}</table></div></details>
+  <script type="application/json" id="{{.ID}}-data">{{data .}}</script>
+</section>
+{{end}}
+<footer>
+  Refresh with <code>shipped collect &amp;&amp; shipped render</code>.
+  Authored lines exclude generated paths and oversized files — configure both in
+  <code>shipped config</code>.
+</footer>
+</div>
+<script>
+for (const el of document.querySelectorAll('script[type="application/json"]')) {
+  const id = el.id.replace('-data', '');
+  const d = JSON.parse(el.textContent);
+  const svg = document.getElementById(id), tip = document.getElementById(id + '-tip');
+  const hov = svg.querySelector('.hov'), cross = svg.querySelector('.cross');
+  const s = d.scale, card = svg.closest('.card');
+  const dots = d.series.map((_, k) => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('r', 4); c.setAttribute('fill', `var(--series-${k + 1})`);
+    c.setAttribute('stroke', 'var(--surface-1)'); c.setAttribute('stroke-width', 2);
+    hov.appendChild(c); return c;
+  });
+  const xOf = i => s.X0 + (s.X1 - s.X0) * (i / Math.max(1, s.N - 1));
+  const yOf = v => s.Y0 - (s.Y0 - s.Y1) * (v / s.YMax);
+  const nf = v => v >= 10000 ? (v / 1000).toFixed(0) + 'k'
+                : v >= 1000 ? (v / 1000).toFixed(1) + 'k'
+                : v === Math.round(v) ? String(v) : v.toFixed(1);
+
+  svg.querySelector('.hit').addEventListener('pointermove', e => {
+    const box = svg.getBoundingClientRect(), k = box.width / svg.viewBox.baseVal.width;
+    const i = Math.max(0, Math.min(s.N - 1,
+      Math.round(((e.clientX - box.left) / k - s.X0) / ((s.X1 - s.X0) / Math.max(1, s.N - 1)))));
+    hov.removeAttribute('hidden'); tip.hidden = false;
+    cross.setAttribute('x1', xOf(i)); cross.setAttribute('x2', xOf(i));
+    d.series.forEach((ser, n) => {
+      dots[n].setAttribute('cx', xOf(i)); dots[n].setAttribute('cy', yOf(ser.values[i]));
+    });
+    tip.innerHTML = `<b>${d.days[i]}</b>` + d.series.map((ser, n) =>
+      `<div class="r"><span><i style="background:var(--series-${n + 1})"></i>${ser.name}</span>` +
+      `<span>${nf(ser.values[i])}${ser.unit}</span></div>`).join('');
+    const cb = card.getBoundingClientRect();
+    const px = box.left - cb.left + xOf(i) * k;
+    tip.style.left = Math.min(Math.max(px + 14, 4), card.clientWidth - tip.offsetWidth - 4) + 'px';
+    tip.style.top = (box.top - cb.top + 12) + 'px';
+  });
+  svg.querySelector('.hit').addEventListener('pointerleave', () => {
+    hov.setAttribute('hidden', ''); tip.hidden = true;
+  });
+}
+</script>
+</body></html>
